@@ -33,7 +33,7 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 	return &Goop{dir: dir, stdout: stdout, stderr: stderr}
 }
 
-func (g *Goop) patchedEnv() []string {
+func (g *Goop) patchedEnv(replace bool) []string {
 	sysEnv := os.Environ()
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
@@ -41,7 +41,11 @@ func (g *Goop) patchedEnv() []string {
 
 	for i, e := range env {
 		if !gopathPatched && strings.HasPrefix(e, "GOPATH=") {
-			env[i] = fmt.Sprintf("GOPATH=%s", g.vendorDir())
+			if replace {
+				env[i] = fmt.Sprintf("GOPATH=%s", g.vendorDir())
+			} else {
+				env[i] = fmt.Sprintf("GOPATH=%s:%s", g.vendorDir(), e[len("GOPATH="):])
+			}
 			gopathPatched = true
 		} else if !pathPatched && strings.HasPrefix(e, "PATH=") {
 			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(g.vendorDir(), "bin"), e[len("PATH="):])
@@ -71,7 +75,7 @@ func (g *Goop) Exec(name string, args ...string) error {
 		name = vname
 	}
 	cmd := exec.Command(name, args...)
-	cmd.Env = g.patchedEnv()
+	cmd.Env = g.patchedEnv(false)
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
@@ -111,7 +115,12 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 
 	for _, dep := range deps {
 		g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + "..." + colors.Reset + "\n"))
-		err = g.Exec("go", "get", "-v", dep.Pkg)
+		cmd := exec.Command("go", "get", "-v", dep.Pkg)
+		cmd.Env = g.patchedEnv(true)
+		cmd.Stdin = g.stdin
+		cmd.Stdout = g.stdout
+		cmd.Stderr = g.stderr
+		err = cmd.Run()
 		if err != nil {
 			return err
 		}
