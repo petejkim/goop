@@ -1,6 +1,8 @@
 Goop
 ====
 
+![Goopie](https://raw.githubusercontent.com/nitrous-io/goop/master/goopie.png)
+
 A dependency manager for Go (golang), inspired by Bundler. It is different from other dependency managers in that it does not force you to mess with your `GOPATH`.
 
 ### Getting Started
@@ -17,6 +19,8 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 2. Run `goop install`. This will install packages under a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will install the versions specified in `Goopfile.lock`. You should check this file in to your source version control.
 
 3. Run commands using `goop exec`, for example `goop exec go run main.go`. This will set correct `GOPATH` env var before executing your command, without clobbering it globally. For convenience, you do not need type `exec` keyword for `go` commands. (e.g. `goop go test`)
+
+4. It's a good idea to add `.govendor` to your version control system's ignore file (e.g. `.gitignore`).
 
 ### Other commands
 
