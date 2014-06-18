@@ -19,7 +19,7 @@ type UnsupportedVCSError struct {
 }
 
 func (e *UnsupportedVCSError) Error() string {
-	return fmt.Sprintf("goop: %s is not supported.", e.VCS)
+	return fmt.Sprintf("%s is not supported.", e.VCS)
 }
 
 type Goop struct {
@@ -64,9 +64,16 @@ func (g *Goop) Exec(name string, args ...string) error {
 }
 
 func (g *Goop) Install() error {
-	f, err := os.Open(path.Join(g.dir, "Goopfile"))
-	if err != nil {
-		return err
+	usingLockfile := false
+	f, err := os.Open(path.Join(g.dir, "Goopfile.lock"))
+	if err == nil {
+		usingLockfile = true
+		g.stdout.Write([]byte(colors.OK + "Using Goopfile.lock..." + colors.Reset + "\n"))
+	} else {
+		f, err = os.Open(path.Join(g.dir, "Goopfile"))
+		if err != nil {
+			return err
+		}
 	}
 	defer f.Close()
 
@@ -104,15 +111,19 @@ func (g *Goop) Install() error {
 		}
 	}
 
-	lf, err := os.Create(path.Join(g.dir, "Goopfile.lock"))
-	defer lf.Close()
+	if !usingLockfile {
+		lf, err := os.Create(path.Join(g.dir, "Goopfile.lock"))
+		defer lf.Close()
 
-	for _, dep := range deps {
-		_, err = lf.WriteString(fmt.Sprintf("%s #%s\n", dep.Pkg, dep.Rev))
-		if err != nil {
-			return err
+		for _, dep := range deps {
+			_, err = lf.WriteString(fmt.Sprintf("%s #%s\n", dep.Pkg, dep.Rev))
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	g.stdout.Write([]byte(colors.OK + "=> Done!" + colors.Reset + "\n"))
 
 	return nil
 }
