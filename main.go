@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/nitrous-io/goop/colors"
@@ -15,12 +16,10 @@ func main() {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		os.Stderr.WriteString(colors.Error + name + ": error - failed to determine present working directory!" + colors.Reset + "\n")
+		os.Stderr.WriteString(colors.Error + name + ": failed to determine present working directory!" + colors.Reset + "\n")
 	}
 
 	g := goop.NewGoop(path.Join(pwd), os.Stdin, os.Stdout, os.Stderr)
-
-	ignoreError := false
 
 	if len(os.Args) < 2 {
 		printUsage()
@@ -39,13 +38,11 @@ func main() {
 			printUsage()
 		}
 		err = g.Exec(os.Args[2], os.Args[3:]...)
-		ignoreError = true
 	case "go":
 		if len(os.Args) < 3 {
 			printUsage()
 		}
 		err = g.Exec("go", os.Args[2:]...)
-		ignoreError = true
 	case "env":
 		g.PrintEnv()
 	default:
@@ -53,10 +50,19 @@ func main() {
 	}
 
 	if err != nil {
-		if ignoreError {
-			os.Exit(1)
+		errMsg := err.Error()
+
+		// go does not provide a cross-platform way to get exit status, so inspect error message instead
+		// https://code.google.com/p/go/source/browse/src/pkg/os/exec_posix.go#119
+		if strings.HasPrefix(errMsg, "exit status ") {
+			code, err := strconv.Atoi(errMsg[len("exit status "):])
+			if err != nil {
+				code = 1
+			}
+			os.Exit(code)
 		}
-		os.Stderr.WriteString(colors.Error + name + ": error - " + err.Error() + colors.Reset + "\n")
+
+		os.Stderr.WriteString(colors.Error + name + ": " + errMsg + colors.Reset + "\n")
 	}
 }
 

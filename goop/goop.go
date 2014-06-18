@@ -44,7 +44,7 @@ func (g *Goop) patchedEnv() []string {
 			env[i] = fmt.Sprintf("GOPATH=%s", g.vendorDir())
 			gopathPatched = true
 		} else if !pathPatched && strings.HasPrefix(e, "PATH=") {
-			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(g.vendorDir(), "bin"), e[5:])
+			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(g.vendorDir(), "bin"), e[len("PATH="):])
 			pathPatched = true
 		}
 		if gopathPatched && pathPatched {
