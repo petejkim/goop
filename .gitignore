@@ -1,0 +1,72 @@
+.vendor
+
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+*.test
+
+# Folders
+_obj/
+_test/
+bin/
+_vendor/
+build/
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+
+*.swp
+**.orig
+.env
+
+# OSX
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# RubyMine
+.idea/
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# Vim
+.*.sw[a-z]
+*.un~
+Session.vim
+tags
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+.elc
+auto-save-list
+tramp
+.\#*
+
+# Vagrant
+.vagrant
