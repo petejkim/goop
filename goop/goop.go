@@ -65,6 +65,11 @@ func (g *Goop) PrintEnv() {
 }
 
 func (g *Goop) Exec(name string, args ...string) error {
+	vname := path.Join(g.vendorDir(), "bin", name)
+	_, err := os.Stat(vname)
+	if err == nil {
+		name = vname
+	}
 	cmd := exec.Command(name, args...)
 	cmd.Env = g.patchedEnv()
 	cmd.Stdin = g.stdin
