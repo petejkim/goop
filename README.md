@@ -28,7 +28,7 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 
 * Run `goop update` to ignore an existing `Goopfile.lock`, and update to latest versions of packages (as specified in `Goopfile`).
 
-* Running `eval $(goop env)` will modify `GOPATH` and `PATH` in current shell session, allowing you to run commands without `go exec`.
+* Running `eval $(goop env)` will modify `GOPATH` and `PATH` in current shell session, allowing you to run commands without `goop exec`.
 
 ### Caveat
 
