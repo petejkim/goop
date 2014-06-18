@@ -16,21 +16,21 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
    github.com/gorilla/mux #854d482e26505d59549690719cbc009f04042c2e
    ```
 
-2. Run `goop install`. This will install packages under a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will install the versions specified in `Goopfile.lock`. You should check this file in to your source version control.
+2. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will ignore `Goopfile` and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
 
-3. Run commands using `goop exec`, for example `goop exec go run main.go`. This will set correct `GOPATH` env var before executing your command, without clobbering it globally. For convenience, you do not need type `exec` keyword for `go` commands. (e.g. `goop go test`)
+3. Run commands using `goop exec` (e.g. `goop exec go run main.go`). This will execute your command in an environment that has correct `GOPATH` and `PATH` set.
 
-4. It's a good idea to add `.govendor` to your version control system's ignore file (e.g. `.gitignore`).
+4. Go commands can be run without the `exec` keyword (e.g. `goop go test`).
 
 ### Other commands
 
-* Run `goop update` to ignore exisiting `Goopfile.lock`, and update to latest versions of packages, as specified in `Goopfile`.
+* Run `goop update` to ignore an existing `Goopfile.lock`, and update to latest versions of packages (as specified in `Goopfile`).
 
-* Running `eval $(goop env)` will modify `GOPATH` and `PATH` in current shell session, allowing you to run commands without `go exec`.  This is however, not recommended.
+* Running `eval $(goop env)` will modify `GOPATH` and `PATH` in current shell session, allowing you to run commands without `go exec`.
 
 ### Caveat
 
-Goop currently only supports Git and Mercurial. Support for Git and Mercurial should cover 99% of the cases, but you are welcome to make a pull request that adds support for Subversion and Bazaar.
+Goop currently only supports Git and Mercurial. This should be fine for 99% of the cases, but you are more than welcome to make a pull request that adds support for Subversion and Bazaar.
 
 - - -
 Copyright (c) 2014 Irrational Industries, Inc. d.b.a. Nitrous.IO.<br>
