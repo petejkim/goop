@@ -7,7 +7,9 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 
 ### Getting Started
 
-1. Create `Goopfile`. Revision reference (e.g. Git SHA hash) is optional, but recommended. Prefix hash with `#`. (This is to futureproof the file format.)
+1. Install Goop: `go get github.com/nitrous-io/goop`
+
+2. Create `Goopfile`. Revision reference (e.g. Git SHA hash) is optional, but recommended. Prefix hash with `#`. (This is to futureproof the file format.)
 
    Example:
    ```
@@ -16,11 +18,11 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
    github.com/gorilla/mux #854d482e26505d59549690719cbc009f04042c2e
    ```
 
-2. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will ignore `Goopfile` and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
+3. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will ignore `Goopfile` and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
 
-3. Run commands using `goop exec` (e.g. `goop exec go run main.go`). This will execute your command in an environment that has correct `GOPATH` and `PATH` set.
+4. Run commands using `goop exec` (e.g. `goop exec go run main.go`). This will execute your command in an environment that has correct `GOPATH` and `PATH` set.
 
-4. Go commands can be run without the `exec` keyword (e.g. `goop go test`).
+5. Go commands can be run without the `exec` keyword (e.g. `goop go test`).
 
 ### Other commands
 
