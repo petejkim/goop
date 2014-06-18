@@ -3,6 +3,8 @@ goop
 
 A dependency manager for Go (golang), inspired by Bundler. It is different from other dependency managers in that it does not force you to mess with your `GOPATH`.
 
+### Getting Started
+
 1. Create `Goopfile`. Revision reference (e.g. Git SHA hash) is optional, but recommended. Prefix hash with `#`. (This is to futureproof the file format.)
 
    Example:
@@ -16,9 +18,13 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 
 3. Run commands using `goop exec`, for example `goop exec go run main.go`. This will set correct `GOPATH` env var before executing your command, without clobbering it globally. For convenience, you do not need type `exec` keyword for `go` commands. (e.g. `goop go test`)
 
-4. Run `goop update` to ignore exisiting `Goopfile.lock`, and update to latest versions of packages, as specified in `Goopfile`.
+### Other commands
 
-#### Caveat
+* Run `goop update` to ignore exisiting `Goopfile.lock`, and update to latest versions of packages, as specified in `Goopfile`.
+
+* Running `eval $(goop env)` will modify `GOPATH` and `PATH` in current shell session, allowing you to run commands without `go exec`.  This is however, not recommended.
+
+### Caveat
 
 Goop currently only supports Git and Mercurial. Support for Git and Mercurial should cover 99% of the cases, but you are welcome to make a pull request that adds support for Subversion and Bazaar.
 

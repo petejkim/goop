@@ -33,7 +33,7 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 	return &Goop{dir: dir, stdout: stdout, stderr: stderr}
 }
 
-func (g *Goop) Env() []string {
+func (g *Goop) patchedEnv() []string {
 	sysEnv := os.Environ()
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
@@ -54,9 +54,19 @@ func (g *Goop) Env() []string {
 	return env
 }
 
+func (g *Goop) PrintEnv() {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.vendorDir())))
+	} else {
+		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.vendorDir(), gopath)))
+	}
+	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.vendorDir(), "bin"), os.Getenv("PATH"))))
+}
+
 func (g *Goop) Exec(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
-	cmd.Env = g.Env()
+	cmd.Env = g.patchedEnv()
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr

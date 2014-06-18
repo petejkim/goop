@@ -27,6 +27,8 @@ func main() {
 		err = g.Exec(os.Args[2], os.Args[3:]...)
 	case "go":
 		err = g.Exec("go", os.Args[2:]...)
+	case "env":
+		g.PrintEnv()
 	}
 	if err != nil {
 		os.Stderr.WriteString(colors.Error + name + ": error - " + err.Error() + colors.Reset + "\n")
