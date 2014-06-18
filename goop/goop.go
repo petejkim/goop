@@ -64,20 +64,32 @@ func (g *Goop) Exec(name string, args ...string) error {
 }
 
 func (g *Goop) Install() error {
-	usingLockfile := false
+	writeLockFile := false
 	f, err := os.Open(path.Join(g.dir, "Goopfile.lock"))
 	if err == nil {
-		usingLockfile = true
 		g.stdout.Write([]byte(colors.OK + "Using Goopfile.lock..." + colors.Reset + "\n"))
 	} else {
 		f, err = os.Open(path.Join(g.dir, "Goopfile"))
 		if err != nil {
 			return err
 		}
+		writeLockFile = true
 	}
-	defer f.Close()
+	return g.parseAndInstall(f, writeLockFile)
+}
 
-	deps, err := parser.Parse(f)
+func (g *Goop) Update() error {
+	f, err := os.Open(path.Join(g.dir, "Goopfile"))
+	if err != nil {
+		return err
+	}
+	return g.parseAndInstall(f, true)
+}
+
+func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
+	defer goopfile.Close()
+
+	deps, err := parser.Parse(goopfile)
 	if err != nil {
 		return err
 	}
@@ -111,7 +123,7 @@ func (g *Goop) Install() error {
 		}
 	}
 
-	if !usingLockfile {
+	if writeLockFile {
 		lf, err := os.Create(path.Join(g.dir, "Goopfile.lock"))
 		defer lf.Close()
 

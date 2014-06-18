@@ -21,6 +21,8 @@ func main() {
 	switch os.Args[1] {
 	case "install":
 		err = g.Install()
+	case "update":
+		err = g.Update()
 	case "exec":
 		err = g.Exec(os.Args[2], os.Args[3:]...)
 	case "go":
