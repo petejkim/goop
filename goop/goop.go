@@ -30,7 +30,7 @@ type Goop struct {
 }
 
 func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *Goop {
-	return &Goop{dir: dir, stdout: stdout, stderr: stderr}
+	return &Goop{dir: dir, stdin: stdin, stdout: stdout, stderr: stderr}
 }
 
 func (g *Goop) patchedEnv(replace bool) []string {
