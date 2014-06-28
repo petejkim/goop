@@ -9,10 +9,11 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 
 1. Install Goop: `go get github.com/nitrous-io/goop`
 
-2. Create `Goopfile`. Revision reference (e.g. Git SHA hash) is optional, but recommended. Prefix hash with `#`. (This is to futureproof the file format.)
+2. Create `Goopfile`. Revision reference (e.g. Git SHA hash) is optional, but recommended. Prefix hash with `#`. (This is to futureproof the file format.) You can write comments in the 'Goopfile' if you prefix them with "//" and write them in a line on their own.
 
    Example:
    ```
+   //This is a comment
    github.com/mattn/go-sqlite3
    github.com/gorilla/context #14f550f51af52180c2eefed15e5fd18d63c0a64a
    github.com/gorilla/mux #854d482e26505d59549690719cbc009f04042c2e

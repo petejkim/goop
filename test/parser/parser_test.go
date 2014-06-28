@@ -74,11 +74,26 @@ var _ = Describe("parser", func() {
 					Expect(deps).To(BeNil())
 				})
 			})
+
+			Context("with only one comment", func() {
+				BeforeEach(func() {
+					deps, err = parser.Parse(bytes.NewBufferString(`
+						//This is a comment.
+					`))					
+				})
+
+				It("returns an empty slice", func() {
+					Expect(err).To(BeNil())
+					Expect(deps).NotTo(BeNil())
+					Expect(deps).To(HaveLen(0))
+				})
+			})
 		})
 
-		Context("multiple entries", func() {
+		Context("multiple entries with comment", func() {
 			BeforeEach(func() {
 				deps, err = parser.Parse(bytes.NewBufferString(`
+					//This is a comment.
 					github.com/nitrous-io/goop #09f0feb1b103933bd9985f0a85e01eeaad8d75c8
 
 					github.com/gorilla/mux
