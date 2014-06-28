@@ -32,7 +32,7 @@ func Parse(r io.Reader) ([]*Dependency, error) {
 	for s.Scan() {
 		ln++
 		line := strings.TrimSpace(s.Text())
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "//") {
 			continue
 		}
 		match := reDepDefn.FindStringSubmatch(line)
