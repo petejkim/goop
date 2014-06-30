@@ -33,8 +33,7 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 	return &Goop{dir: dir, stdin: stdin, stdout: stdout, stderr: stderr}
 }
 
-func (g *Goop) patchedEnv(replace bool) []string {
-	sysEnv := os.Environ()
+func (g *Goop) patchEnv(sysEnv []string, replace bool) []string {
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
 	gopathPatched, pathPatched := false, false
@@ -58,14 +57,29 @@ func (g *Goop) patchedEnv(replace bool) []string {
 	return env
 }
 
-func (g *Goop) PrintEnv() {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.vendorDir())))
-	} else {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.vendorDir(), gopath)))
+func (g *Goop) copyPartialEnv(vars ...string) []string {
+	sysEnv := os.Environ()
+	env := []string{}
+nextVar:
+	for _, v := range vars {
+		ve := v + "="
+		for _, e := range sysEnv {
+			if strings.HasPrefix(e, ve) {
+				env = append(env, e)
+				continue nextVar
+			}
+		}
+		env = append(env, ve)
 	}
-	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.vendorDir(), "bin"), os.Getenv("PATH"))))
+	return env
+}
+
+func (g *Goop) PrintEnv() {
+	env := g.copyPartialEnv("GOPATH", "PATH")
+	g.patchEnv(env, false)
+	for _, v := range env {
+		fmt.Println(v)
+	}
 }
 
 func (g *Goop) Exec(name string, args ...string) error {
@@ -75,7 +89,8 @@ func (g *Goop) Exec(name string, args ...string) error {
 		name = vname
 	}
 	cmd := exec.Command(name, args...)
-	cmd.Env = g.patchedEnv(false)
+	env := os.Environ()
+	cmd.Env = g.patchEnv(env, false)
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
@@ -113,10 +128,11 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		return err
 	}
 
+	env := os.Environ()
 	for _, dep := range deps {
 		g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + "..." + colors.Reset + "\n"))
 		cmd := exec.Command("go", "get", "-v", dep.Pkg)
-		cmd.Env = g.patchedEnv(true)
+		cmd.Env = g.patchEnv(env, true)
 		cmd.Stdin = g.stdin
 		cmd.Stdout = g.stdout
 		cmd.Stderr = g.stderr
