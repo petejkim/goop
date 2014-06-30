@@ -14,6 +14,10 @@ import (
 	"github.com/nitrous-io/goop/parser"
 )
 
+var (
+	envVars = []string{"GOPATH", "GOBIN", "PATH"}
+)
+
 type UnsupportedVCSError struct {
 	VCS string
 }
@@ -33,39 +37,72 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 	return &Goop{dir: dir, stdin: stdin, stdout: stdout, stderr: stderr}
 }
 
-func (g *Goop) patchedEnv(replace bool) []string {
-	sysEnv := os.Environ()
+func (g *Goop) patchEnv(sysEnv []string) []string {
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
-	gopathPatched, pathPatched := false, false
+
+	binDir := path.Join(g.vendorDir(), "bin")
+	patches := map[string]struct {
+		path    string
+		replace bool
+		applied bool
+	}{
+		"GOPATH": {g.vendorDir(), true, false},
+		"PATH":   {binDir, false, false},
+		"GOBIN":  {binDir, true, false},
+	}
 
 	for i, e := range env {
-		if !gopathPatched && strings.HasPrefix(e, "GOPATH=") {
-			if replace {
-				env[i] = fmt.Sprintf("GOPATH=%s", g.vendorDir())
+		nv := strings.SplitN(e, "=", 2)
+		n, v := nv[0], nv[1]
+		paths := strings.Split(v, ":")
+
+		if patch, ok := patches[n]; ok && !patch.applied {
+			if patch.replace {
+				paths = []string{patch.path}
 			} else {
-				env[i] = fmt.Sprintf("GOPATH=%s:%s", g.vendorDir(), e[len("GOPATH="):])
+				paths = append([]string{patch.path}, paths...)
 			}
-			gopathPatched = true
-		} else if !pathPatched && strings.HasPrefix(e, "PATH=") {
-			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(g.vendorDir(), "bin"), e[len("PATH="):])
-			pathPatched = true
-		}
-		if gopathPatched && pathPatched {
-			break
+			env[i] = fmt.Sprintf("%s=%s", n, strings.Join(paths, ":"))
+			patch.applied = true
 		}
 	}
 	return env
 }
 
-func (g *Goop) PrintEnv() {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.vendorDir())))
-	} else {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.vendorDir(), gopath)))
+func (g *Goop) copyPartialEnv(vars ...string) []string {
+	sysEnv := os.Environ()
+	env := []string{}
+nextVar:
+	for _, v := range vars {
+		ve := v + "="
+		for _, e := range sysEnv {
+			if strings.HasPrefix(e, ve) {
+				env = append(env, e)
+				continue nextVar
+			}
+		}
+		env = append(env, ve)
 	}
-	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.vendorDir(), "bin"), os.Getenv("PATH"))))
+	return env
+}
+
+func (g *Goop) PrintEnv() {
+	for _, v := range envVars {
+		fmt.Printf("_OLD_%s=\"$%s\"\n", v, v)
+	}
+	env := g.copyPartialEnv(envVars...)
+	env = g.patchEnv(env)
+	for _, v := range env {
+		fmt.Println(v)
+	}
+}
+
+func (g *Goop) PrintEnvDeactivate() {
+	for _, v := range envVars {
+		fmt.Printf("%s=\"$_OLD_%s\"\n", v, v)
+		fmt.Printf("unset _OLD_%s\n", v)
+	}
 }
 
 func (g *Goop) Exec(name string, args ...string) error {
@@ -75,7 +112,8 @@ func (g *Goop) Exec(name string, args ...string) error {
 		name = vname
 	}
 	cmd := exec.Command(name, args...)
-	cmd.Env = g.patchedEnv(false)
+	env := os.Environ()
+	cmd.Env = g.patchEnv(env)
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
@@ -113,10 +151,11 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		return err
 	}
 
+	env := os.Environ()
 	for _, dep := range deps {
 		g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + "..." + colors.Reset + "\n"))
 		cmd := exec.Command("go", "get", "-v", dep.Pkg)
-		cmd.Env = g.patchedEnv(true)
+		cmd.Env = g.patchEnv(env)
 		cmd.Stdin = g.stdin
 		cmd.Stdout = g.stdout
 		cmd.Stderr = g.stderr

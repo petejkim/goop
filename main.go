@@ -45,6 +45,8 @@ func main() {
 		err = g.Exec("go", os.Args[2:]...)
 	case "env":
 		g.PrintEnv()
+	case "deactivate":
+		g.PrintEnvDeactivate()
 	default:
 		err = errors.New(`unrecognized command "` + cmd + `"`)
 	}
@@ -80,7 +82,8 @@ The commands are:
 
     install     install the dependencies specified by Goopfile or Goopfile.lock
     update      update dependencies to their latest versions
-    env         print GOPATH and PATH environment variables, with the vendor path prepended
+    env         print shell commands to activate vendor environment
+    deactivate  print shell commands to deactivate vendor environment
     exec        execute a command in the context of the installed dependencies
     go          execute a go command in the context of the installed dependencies
     help        print this message
