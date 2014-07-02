@@ -20,6 +20,6 @@ format:
 test:
 	@echo "$(OK_COLOR)==> Testing...$(NO_COLOR)"
 	@go list -f '{{range .TestImports}}{{.}} {{end}}' ./... | xargs -n1 go get -d
-	@ginkgo -r -trace -keepGoing
+	@goop exec ginkgo -r -trace -keepGoing
 
 .PHONY: all build format test

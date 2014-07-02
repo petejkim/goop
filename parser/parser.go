@@ -4,24 +4,28 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 )
-
-type Dependency struct {
-	Pkg string
-	Rev string
-}
-
-var reDepDefn = regexp.MustCompile(`\A(\S+)(\s+#(\S+))?\z`)
 
 type ParseError struct {
 	LineNum  uint
 	LineText string
+	Message  string
 }
 
+const (
+	CommentOrPackage = iota
+	URLOr
+)
+
+const (
+	TokenComment = "//"
+	TokenRev     = "#"
+	TokenURL     = "!"
+)
+
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("Parse failed at line %d: %s", e.LineNum, e.LineText)
+	return fmt.Sprintf("Parse failed at line %d - %s\n  %s", e.LineNum, e.LineText, e.Message)
 }
 
 func Parse(r io.Reader) ([]*Dependency, error) {
@@ -32,14 +36,38 @@ func Parse(r io.Reader) ([]*Dependency, error) {
 	for s.Scan() {
 		ln++
 		line := strings.TrimSpace(s.Text())
-		if line == "" {
+		tokens := strings.Split(line, " ")
+
+		if line == "" || strings.HasPrefix(tokens[0], TokenComment) {
 			continue
 		}
-		match := reDepDefn.FindStringSubmatch(line)
-		if match == nil {
-			return nil, &ParseError{LineNum: ln, LineText: line}
+
+		dep := &Dependency{Pkg: tokens[0]}
+		parseErr := &ParseError{LineNum: ln, LineText: line}
+
+		for _, t := range tokens[1:] {
+			if strings.HasPrefix(t, TokenComment) {
+				break
+			}
+			switch {
+			case strings.HasPrefix(t, TokenRev):
+				if dep.Rev != "" {
+					parseErr.Message = "Multiple revisions given"
+					return nil, parseErr
+				}
+				dep.Rev = t[1:]
+			case strings.HasPrefix(t, TokenURL):
+				if dep.URL != "" {
+					parseErr.Message = "Multiple URLs given"
+					return nil, parseErr
+				}
+				dep.URL = t[1:]
+			default:
+				parseErr.Message = "Unrecognized token given"
+				return nil, parseErr
+			}
 		}
-		deps = append(deps, &Dependency{Pkg: match[1], Rev: match[3]})
+		deps = append(deps, dep)
 	}
 
 	if err := s.Err(); err != nil {

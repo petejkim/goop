@@ -15,7 +15,8 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
    ```
    github.com/mattn/go-sqlite3
    github.com/gorilla/context #14f550f51af52180c2eefed15e5fd18d63c0a64a
-   github.com/gorilla/mux #854d482e26505d59549690719cbc009f04042c2e
+   github.com/dotcloud/docker/pkg/proxy #v1.0.1 // tag
+   github.com/gorilla/mux !git@github.com:nitrous-io/mux.git // override repo url
    ```
 
 3. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package. Subsequent `goop install` runs will ignore `Goopfile` and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
