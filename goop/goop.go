@@ -37,6 +37,7 @@ func (g *Goop) patchedEnv(replace bool) []string {
 	sysEnv := os.Environ()
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
+
 	gopathPatched, pathPatched := false, false
 
 	for i, e := range env {
@@ -54,6 +55,14 @@ func (g *Goop) patchedEnv(replace bool) []string {
 		if gopathPatched && pathPatched {
 			break
 		}
+	}
+
+	if !gopathPatched {
+		env = append(env, fmt.Sprintf("GOPATH=%s", g.vendorDir()))
+	}
+
+	if !pathPatched {
+		env = append(env, fmt.Sprintf("PATH=%s", path.Join(g.vendorDir(), "bin")))
 	}
 	return env
 }
