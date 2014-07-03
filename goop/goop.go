@@ -34,6 +34,12 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 }
 
 func (g *Goop) patchedEnv(replace bool) []string {
+	// Later versions of go require GOPATH to be defined; if it's not defined,
+	// default it to the vendor dir
+	if os.Getenv("GOPATH") == "" {
+		os.Setenv("GOPATH", g.vendorDir())
+	}
+
 	sysEnv := os.Environ()
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
