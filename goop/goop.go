@@ -38,7 +38,9 @@ func (g *Goop) patchedEnv(replace bool) []string {
 	env := make([]string, len(sysEnv))
 	copy(env, sysEnv)
 
-	gopathPatched, pathPatched := false, false
+	binPath := path.Join(g.vendorDir(), "bin")
+
+	gopathPatched, gobinPatched, pathPatched := false, false, false
 
 	for i, e := range env {
 		if !gopathPatched && strings.HasPrefix(e, "GOPATH=") {
@@ -48,11 +50,14 @@ func (g *Goop) patchedEnv(replace bool) []string {
 				env[i] = fmt.Sprintf("GOPATH=%s:%s", g.vendorDir(), e[len("GOPATH="):])
 			}
 			gopathPatched = true
+		} else if !gobinPatched && strings.HasPrefix(e, "GOBIN=") {
+			env[i] = fmt.Sprintf("GOBIN=%s", binPath)
+			gobinPatched = true
 		} else if !pathPatched && strings.HasPrefix(e, "PATH=") {
-			env[i] = fmt.Sprintf("PATH=%s:%s", path.Join(g.vendorDir(), "bin"), e[len("PATH="):])
+			env[i] = fmt.Sprintf("PATH=%s:%s", binPath, e[len("PATH="):])
 			pathPatched = true
 		}
-		if gopathPatched && pathPatched {
+		if gopathPatched && gobinPatched && pathPatched {
 			break
 		}
 	}
@@ -61,9 +66,10 @@ func (g *Goop) patchedEnv(replace bool) []string {
 		env = append(env, fmt.Sprintf("GOPATH=%s", g.vendorDir()))
 	}
 
-	if !pathPatched {
-		env = append(env, fmt.Sprintf("PATH=%s", path.Join(g.vendorDir(), "bin")))
+	if !gobinPatched {
+		env = append(env, fmt.Sprintf("GOBIN=%s", binPath))
 	}
+
 	return env
 }
 
