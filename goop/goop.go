@@ -327,6 +327,16 @@ func (g *Goop) currentRev(vcsCmd string, path string) (string, error) {
 		} else {
 			return strings.TrimSpace(string(rev)), err
 		}
+	case "bzr":
+		cmd := exec.Command("bzr", "revno")
+		cmd.Dir = path
+		cmd.Stderr = g.stderr
+		rev, err := cmd.Output()
+		if err != nil {
+			return "", err
+		} else {
+			return strings.TrimSpace(string(rev)), err
+		}
 	}
 	return "", &UnsupportedVCSError{VCS: vcsCmd}
 }
@@ -355,7 +365,13 @@ func (g *Goop) checkout(vcsCmd string, path string, tag string) error {
 		if err != nil {
 			return err
 		}
-		return g.quietCommand(path, "hg", "update", tag).Run()
+		return g.quietCommand(path, "hg", "update", tag)
+	case "bzr":
+		err := g.execInPath(path, "bzr", "update")
+		if err != nil {
+			return err
+		}
+		return g.quietCommand(path, "bzr", "update", "-r", tag)
 	}
 	return &UnsupportedVCSError{VCS: vcsCmd}
 }
