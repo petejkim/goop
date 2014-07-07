@@ -12,6 +12,7 @@ import (
 
 	"github.com/nitrous-io/goop/colors"
 	"github.com/nitrous-io/goop/parser"
+	"github.com/nitrous-io/goop/pkg/env"
 )
 
 type UnsupportedVCSError struct {
@@ -33,44 +34,20 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *G
 	return &Goop{dir: dir, stdin: stdin, stdout: stdout, stderr: stderr}
 }
 
-func (g *Goop) patchedEnv(replace bool) []string {
-	sysEnv := os.Environ()
-	env := make([]string, len(sysEnv))
-	copy(env, sysEnv)
+func (g *Goop) patchedEnv(replaceGopath bool) env.Env {
+	e := env.NewEnv()
 
 	binPath := path.Join(g.vendorDir(), "bin")
 
-	gopathPatched, gobinPatched, pathPatched := false, false, false
-
-	for i, e := range env {
-		if !gopathPatched && strings.HasPrefix(e, "GOPATH=") {
-			if replace {
-				env[i] = fmt.Sprintf("GOPATH=%s", g.vendorDir())
-			} else {
-				env[i] = fmt.Sprintf("GOPATH=%s:%s", g.vendorDir(), e[len("GOPATH="):])
-			}
-			gopathPatched = true
-		} else if !gobinPatched && strings.HasPrefix(e, "GOBIN=") {
-			env[i] = fmt.Sprintf("GOBIN=%s", binPath)
-			gobinPatched = true
-		} else if !pathPatched && strings.HasPrefix(e, "PATH=") {
-			env[i] = fmt.Sprintf("PATH=%s:%s", binPath, e[len("PATH="):])
-			pathPatched = true
-		}
-		if gopathPatched && gobinPatched && pathPatched {
-			break
-		}
+	if replaceGopath {
+		e["GOPATH"] = g.vendorDir()
+	} else {
+		e.Prepend("GOPATH", g.vendorDir())
 	}
+	e["GOBIN"] = binPath
+	e.Prepend("PATH", binPath)
 
-	if !gopathPatched {
-		env = append(env, fmt.Sprintf("GOPATH=%s", g.vendorDir()))
-	}
-
-	if !gobinPatched {
-		env = append(env, fmt.Sprintf("GOBIN=%s", binPath))
-	}
-
-	return env
+	return e
 }
 
 func (g *Goop) PrintEnv() {
@@ -90,7 +67,7 @@ func (g *Goop) Exec(name string, args ...string) error {
 		name = vname
 	}
 	cmd := exec.Command(name, args...)
-	cmd.Env = g.patchedEnv(false)
+	cmd.Env = g.patchedEnv(false).Strings()
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
@@ -128,62 +105,157 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		return err
 	}
 
+	srcPath := path.Join(g.vendorDir(), "src")
+	tmpGoPath := path.Join(g.vendorDir(), "tmp")
+	tmpSrcPath := path.Join(tmpGoPath, "src")
+
+	err = os.RemoveAll(tmpGoPath)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(tmpSrcPath, 0775)
+	if err != nil {
+		return err
+	}
+
+	repos := map[string]*vcs.RepoRoot{}
+	lockedDeps := map[string]*parser.Dependency{}
+
 	for _, dep := range deps {
 		if dep.URL == "" {
-			g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + "..." + colors.Reset + "\n"))
+			g.stdout.Write([]byte(colors.OK + "=> Fetching " + dep.Pkg + "..." + colors.Reset + "\n"))
 		} else {
-			g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + " (" + dep.URL + ")..." + colors.Reset + "\n"))
+			g.stdout.Write([]byte(colors.OK + "=> Fetching " + dep.Pkg + " from " + dep.URL + "..." + colors.Reset + "\n"))
 		}
 
-		var repo *vcs.RepoRoot
+		repo, err := repoForDep(dep)
+		if err != nil {
+			return err
+		}
+		repos[dep.Pkg] = repo
 
-		if dep.URL != "" {
-			repo, err = RepoRootForImportPathWithURLOverride(dep.Pkg, dep.URL)
-		} else {
-			repo, err = vcs.RepoRootForImportPath(dep.Pkg, true)
+		pkgPath := path.Join(srcPath, repo.Root)
+		tmpPkgPath := path.Join(tmpSrcPath, repo.Root)
+
+		err = os.MkdirAll(path.Join(tmpPkgPath, ".."), 0775)
+		if err != nil {
+			return err
+		}
+
+		noclone := false
+
+		_, err = os.Stat(pkgPath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		} else if err == nil {
+			// if package already exists, just move package dir and skip cloning
+			g.stderr.Write([]byte(colors.Warn + "Warning: " + pkgPath + " already exists; skipping!" + colors.Reset + "\n"))
+			err = os.Rename(pkgPath, tmpPkgPath)
 			if err != nil {
 				return err
 			}
+			noclone = true
 		}
 
-		pkgPath := path.Join(g.vendorDir(), "src", repo.Root)
-
-		var cmd *exec.Cmd
-		if dep.URL == "" {
-			cmd = exec.Command("go", "get", "-v", dep.Pkg)
-			cmd.Env = g.patchedEnv(true)
-			cmd.Stdin = g.stdin
-			cmd.Stdout = g.stdout
-			cmd.Stderr = g.stderr
-			err = cmd.Run()
+		if !noclone {
+			// clone repo
+			err = g.clone(repo.VCS.Cmd, repo.Repo, tmpPkgPath)
 			if err != nil {
 				return err
 			}
-		} else {
-			g.clone(repo.VCS.Cmd, dep.URL, pkgPath)
 		}
 
 		// if rev is not given, record current rev in path
 		if dep.Rev == "" {
-			rev, err := g.currentRev(repo.VCS.Cmd, pkgPath)
+			rev, err := g.currentRev(repo.VCS.Cmd, tmpPkgPath)
 			if err != nil {
 				return err
 			}
 			dep.Rev = rev
-			continue
 		}
+		lockedDeps[dep.Pkg] = dep
 
-		err = g.checkout(repo.VCS.Cmd, pkgPath, dep.Rev)
+		// checkout specified rev
+		err = g.checkout(repo.VCS.Cmd, tmpPkgPath, dep.Rev)
 		if err != nil {
 			return err
 		}
+	}
+
+	for _, dep := range deps {
+		g.stdout.Write([]byte(colors.OK + "=> Fetching dependencies for " + dep.Pkg + "..." + colors.Reset + "\n"))
+
+		repo := repos[dep.Pkg]
+		tmpPkgPath := path.Join(tmpSrcPath, repo.Root)
+
+		// fetch sub-dependencies
+		subdeps, err := g.goGet(tmpPkgPath, tmpGoPath)
+		if err != nil {
+			return err
+		}
+
+		for _, subdep := range subdeps {
+			subdepRepo, err := vcs.RepoRootForImportPath(subdep, true)
+			if err != nil {
+				return err
+			}
+
+			subdepPkgPath := path.Join(tmpSrcPath, subdepRepo.Root)
+
+			rev, err := g.currentRev(subdepRepo.VCS.Cmd, subdepPkgPath)
+			if err != nil {
+				return err
+			}
+
+			err = g.checkout(subdepRepo.VCS.Cmd, subdepPkgPath, rev)
+			if err != nil {
+				return err
+			}
+
+			repos[subdep] = subdepRepo
+			lockedDeps[subdep] = &parser.Dependency{Pkg: subdep, Rev: rev}
+		}
+	}
+
+	for _, dep := range lockedDeps {
+		g.stdout.Write([]byte(colors.OK + "=> Installing " + dep.Pkg + "..." + colors.Reset + "\n"))
+
+		repo := repos[dep.Pkg]
+		pkgPath := path.Join(srcPath, repo.Root)
+		tmpPkgPath := path.Join(tmpSrcPath, repo.Root)
+
+		// move package back to vendor path
+		err = os.MkdirAll(path.Join(pkgPath, ".."), 0775)
+		if err != nil {
+			return err
+		}
+
+		err = os.RemoveAll(pkgPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Rename(tmpPkgPath, pkgPath)
+		if err != nil {
+			return err
+		}
+
+		// install
+		cmd := g.command(pkgPath, "go", "install", "-x", dep.Pkg)
+		cmd.Env = g.patchedEnv(true).Strings()
+		cmd.Run()
+	}
+
+	err = os.RemoveAll(tmpGoPath)
+	if err != nil {
+		return err
 	}
 
 	if writeLockFile {
 		lf, err := os.Create(path.Join(g.dir, "Goopfile.lock"))
 		defer lf.Close()
 
-		for _, dep := range deps {
+		for _, dep := range lockedDeps {
 			_, err = lf.WriteString(dep.String() + "\n")
 			if err != nil {
 				return err
@@ -227,52 +299,53 @@ func (g *Goop) currentRev(vcsCmd string, path string) (string, error) {
 }
 
 func (g *Goop) clone(vcsCmd string, url string, clonePath string) error {
-	path, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(clonePath)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	} else if err == nil {
-		// file exists
-		g.stderr.Write([]byte(colors.Warn + "Warning: " + clonePath + " already exists; skipping!" + colors.Reset + "\n"))
-		return nil
-	}
-
 	switch vcsCmd {
 	case "git":
-		return g.execInPath(path, "git", "clone", url, clonePath)
+		return g.command("", "git", "clone", url, clonePath).Run()
 	case "hg":
-		return g.execInPath(path, "hg", "clone", url, clonePath)
+		return g.command("", "hg", "clone", url, clonePath).Run()
 	}
 	return &UnsupportedVCSError{VCS: vcsCmd}
 }
 
 func (g *Goop) checkout(vcsCmd string, path string, tag string) error {
+	g.stdout.Write([]byte("Checking out \"" + tag + "\"\n"))
 	switch vcsCmd {
 	case "git":
-		err := g.execInPath(path, "git", "fetch")
+		err := g.command(path, "git", "fetch").Run()
 		if err != nil {
 			return err
 		}
-		return g.execInPath(path, "git", "checkout", tag)
+		return g.quietCommand(path, "git", "checkout", tag).Run()
 	case "hg":
-		err := g.execInPath(path, "hg", "pull")
+		err := g.command(path, "hg", "pull").Run()
 		if err != nil {
 			return err
 		}
-		return g.execInPath(path, "hg", "update", tag)
+		return g.quietCommand(path, "hg", "update", tag).Run()
 	}
 	return &UnsupportedVCSError{VCS: vcsCmd}
 }
 
-func (g *Goop) execInPath(path string, name string, args ...string) error {
+func (g *Goop) command(path string, name string, args ...string) *exec.Cmd {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = path
 	cmd.Stdin = g.stdin
 	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
-	return cmd.Run()
+	return cmd
+}
+
+func (g *Goop) quietCommand(path string, name string, args ...string) *exec.Cmd {
+	cmd := g.command(path, name, args...)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd
+}
+
+func repoForDep(dep *parser.Dependency) (*vcs.RepoRoot, error) {
+	if dep.URL != "" {
+		return RepoRootForImportPathWithURLOverride(dep.Pkg, dep.URL)
+	}
+	return vcs.RepoRootForImportPath(dep.Pkg, true)
 }
