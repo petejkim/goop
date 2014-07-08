@@ -144,17 +144,26 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 
 		noclone := false
 
-		_, err = os.Stat(pkgPath)
-		if err != nil && !os.IsNotExist(err) {
+		exists, err := pathExists(pkgPath)
+		if err != nil {
 			return err
-		} else if err == nil {
-			// if package already exists, just move package dir and skip cloning
+		}
+		tmpExists, err := pathExists(tmpPkgPath)
+		if err != nil {
+			return err
+		}
+		if exists {
+			// if package already exists, just symlink package dir and skip cloning
 			g.stderr.Write([]byte(colors.Warn + "Warning: " + pkgPath + " already exists; skipping!" + colors.Reset + "\n"))
-			err = os.Rename(pkgPath, tmpPkgPath)
-			if err != nil {
-				return err
+			if !tmpExists {
+				err = os.Symlink(pkgPath, tmpPkgPath)
+				if err != nil {
+					return err
+				}
 			}
 			noclone = true
+		} else {
+			noclone = tmpExists
 		}
 
 		if !noclone {
@@ -224,20 +233,30 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		pkgPath := path.Join(srcPath, repo.Root)
 		tmpPkgPath := path.Join(tmpSrcPath, repo.Root)
 
-		// move package back to vendor path
 		err = os.MkdirAll(path.Join(pkgPath, ".."), 0775)
 		if err != nil {
 			return err
 		}
 
-		err = os.RemoveAll(pkgPath)
-		if err != nil {
+		lfi, err := os.Lstat(tmpPkgPath)
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-
-		err = os.Rename(tmpPkgPath, pkgPath)
-		if err != nil {
-			return err
+		if err == nil {
+			if lfi.Mode()&os.ModeSymlink == 0 {
+				// move package to vendor path
+				err = os.RemoveAll(pkgPath)
+				if err != nil {
+					return err
+				}
+				err = os.Rename(tmpPkgPath, pkgPath)
+			} else {
+				// package already in vendor path, just remove the symlink
+				err = os.Remove(tmpPkgPath)
+			}
+			if err != nil {
+				return err
+			}
 		}
 
 		// install
@@ -348,4 +367,22 @@ func repoForDep(dep *parser.Dependency) (*vcs.RepoRoot, error) {
 		return RepoRootForImportPathWithURLOverride(dep.Pkg, dep.URL)
 	}
 	return vcs.RepoRootForImportPath(dep.Pkg, true)
+}
+
+// pathExists returns:
+// * (true, nil) if path exists
+// * (false, nil) if path does not exist
+// * (false, err) if error happened during stat
+func pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	switch {
+	case err != nil && !os.IsNotExist(err): // unexpected err
+		return false, err
+	case err != nil && os.IsNotExist(err):
+		return false, nil
+	case err == nil:
+		return true, nil
+	default:
+		panic("never reached")
+	}
 }
