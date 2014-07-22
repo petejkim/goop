@@ -258,8 +258,12 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 				return err
 			}
 		}
+	}
 
+	for _, dep := range lockedDeps {
 		// install
+		repo := repos[dep.Pkg]
+		pkgPath := path.Join(srcPath, repo.Root)
 		cmd := g.command(pkgPath, "go", "install", "-x", dep.Pkg)
 		cmd.Env = g.patchedEnv(true).Strings()
 		cmd.Run()
