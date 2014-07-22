@@ -51,18 +51,20 @@ func main() {
 
 	if err != nil {
 		errMsg := err.Error()
+		code := 1
 
 		// go does not provide a cross-platform way to get exit status, so inspect error message instead
 		// https://code.google.com/p/go/source/browse/src/pkg/os/exec_posix.go#119
 		if strings.HasPrefix(errMsg, "exit status ") {
-			code, err := strconv.Atoi(errMsg[len("exit status "):])
+			code, err = strconv.Atoi(errMsg[len("exit status "):])
 			if err != nil {
 				code = 1
 			}
-			os.Exit(code)
+			errMsg = "Command failed with " + errMsg
 		}
 
 		os.Stderr.WriteString(colors.Error + name + ": " + errMsg + colors.Reset + "\n")
+		os.Exit(code)
 	}
 }
 
