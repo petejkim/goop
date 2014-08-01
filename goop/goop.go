@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 
 	"code.google.com/p/go.tools/go/vcs"
@@ -274,11 +275,20 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		return err
 	}
 
+	// in order to minimize diffs, we sort lockedDeps first and write the
+	// sorted results
 	if writeLockFile {
 		lf, err := os.Create(path.Join(g.dir, "Goopfile.lock"))
 		defer lf.Close()
 
-		for _, dep := range lockedDeps {
+		var keys []string
+		for k := range lockedDeps {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			dep := lockedDeps[k]
 			_, err = lf.WriteString(dep.String() + "\n")
 			if err != nil {
 				return err
