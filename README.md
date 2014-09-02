@@ -36,5 +36,7 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
 Goop currently only supports Git and Mercurial. This should be fine for 99% of the cases, but you are more than welcome to make a pull request that adds support for Subversion and Bazaar.
 
 - - -
+[Work on awesome golang projects, like Goop, at Nitrous.IO](http://www.nitrous.io/jobs/?utm_source=nitrous.io&utm_medium=goop_readme&utm_campaign=goop_readme)
+
 Copyright (c) 2014 Irrational Industries, Inc. d.b.a. Nitrous.IO.<br>
 This software is licensed under the [MIT License](http://github.com/nitrous-io/goop/raw/master/LICENSE).
