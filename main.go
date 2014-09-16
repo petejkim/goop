@@ -26,11 +26,42 @@ func main() {
 	}
 
 	cmd := os.Args[1]
+	pkg, savedev := "", false
+
 	switch cmd {
 	case "help":
 		printUsage()
 	case "install":
-		err = g.Install()
+		if len(os.Args) > 2 {
+			pkg = os.Args[2] //install the specified package
+			argLen := len(os.Args)
+
+			dev := os.Args[argLen-1]
+			if "--save-dev" != dev {
+				if pkg == "--save-dev" {
+					savedev = true
+					pkgs := os.Args[3:]
+
+					pkg = strings.Join(pkgs, " ")
+				} else {
+					savedev = false //unset the save dev config
+					pkgs := os.Args[2:]
+
+					pkg = strings.Join(pkgs, " ")
+				}
+
+			} else {
+				savedev = true
+				pkgs := os.Args[2 : argLen-1]
+
+				pkg = strings.Join(pkgs, " ")
+			}
+
+			err = g.InstallPkg(pkg, savedev)
+		} else {
+			err = g.Install()
+		}
+
 	case "update":
 		err = g.Update()
 	case "exec":
