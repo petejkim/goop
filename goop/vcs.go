@@ -1,6 +1,7 @@
 package goop
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -17,7 +18,11 @@ func GuessVCS(url string) string {
 		return "git"
 	case strings.HasPrefix(url, "git@"):
 		return "git"
+	case strings.HasSuffix(url, ".git"):
+		return "git"
 	case strings.HasPrefix(url, "ssh://hg@"):
+		return "hg"
+	case strings.HasSuffix(url, ".hg"):
 		return "hg"
 	default:
 		return ""
@@ -54,5 +59,14 @@ func RepoRootForImportPathWithURLOverride(importPath string, url string) (*vcs.R
 		return nil, err
 	}
 	repo.Repo = url
+
+	vcs_guess := GuessVCS(url)
+	if vcs_guess != "" {
+		repo.VCS = vcs.ByCmd(vcs_guess)
+		if repo.VCS == nil {
+			return nil, fmt.Errorf("Unrecognized VCS %s in %s ", vcs_guess, url)
+		}
+	}
+
 	return repo, nil
 }

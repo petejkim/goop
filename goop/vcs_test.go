@@ -24,7 +24,7 @@ var _ = Describe("vcs", func() {
 		{"bitbucket.org/kardianos/osext", "ssh://hg@bitbucket.org/kardianos/osext", "hg", "hg", "bitbucket.org/kardianos/osext"},
 		{"bitbucket.org/kardianos/osext", "https://bitbucket.org/kardianos/osext", "", "hg", "bitbucket.org/kardianos/osext"},
 		{"bitbucket.org/ymotongpoo/go-bitarray", "git@bitbucket.org:ymotongpoo/go-bitarray.git", "git", "git", "bitbucket.org/ymotongpoo/go-bitarray"},
-		{"bitbucket.org/ymotongpoo/go-bitarray", "https://bitbucket.org/ymotongpoo/go-bitarray.git", "", "git", "bitbucket.org/ymotongpoo/go-bitarray"},
+		{"bitbucket.org/ymotongpoo/go-bitarray", "https://bitbucket.org/ymotongpoo/go-bitarray.git", "git", "git", "bitbucket.org/ymotongpoo/go-bitarray"},
 		{"code.google.com/p/go.tools/go/vcs", "https://code.google.com/p/go.tools/", "", "hg", "code.google.com/p/go.tools"},
 		// not supported yet - {"example.com/foo/go-sqlite3", "git@github.com:mattn/go-sqlite3.git", "git", "git", "example.com/foo/go-sqlite3"},
 	}
