@@ -400,3 +400,42 @@ func pathExists(path string) (bool, error) {
 		panic("never reached")
 	}
 }
+
+func inSlice(needle string, haystack []string) bool {
+	for _, val := range haystack {
+		if needle == val {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Goop) InitFile() error {
+	deps := exec.Command("go", "list", "-f", "{{.Deps}}")
+	deps.Dir = g.dir
+	output, err := deps.Output()
+
+	if err != nil {
+		return err
+	}
+
+	deplist := parser.ParseGoList(output)
+	stddeps := parser.GetStdPackages()
+
+	var external_deps []string
+
+	for _, dep := range deplist {
+		if !inSlice(dep, stddeps) {
+			external_deps = append(external_deps, dep)
+		}
+	}
+
+	fo, err := os.Create(g.dir + "/Goopfile")
+	if err != nil {
+		return err
+	}
+	defer fo.Close()
+
+	fo.Write([]byte(strings.Join(external_deps, "\r\n")))
+	return nil
+}

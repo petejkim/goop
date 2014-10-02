@@ -45,6 +45,8 @@ func main() {
 		err = g.Exec("go", os.Args[2:]...)
 	case "env":
 		g.PrintEnv()
+	case "init":
+		g.InitFile()
 	default:
 		err = errors.New(`unrecognized command "` + cmd + `"`)
 	}
