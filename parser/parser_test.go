@@ -49,13 +49,22 @@ var _ = Describe("parser", func() {
 			})
 
 			Context("with revision specified", func() {
-				BeforeEach(func() {
+				It("parses and returns a slice containing one dependency item", func() {
 					deps, err = parser.Parse(bytes.NewBufferString(`
 						github.com/nitrous-io/goop #09f0feb1b103933bd9985f0a85e01eeaad8d75c8
 					`))
+					Expect(err).To(BeNil())
+					Expect(deps).To(HaveLen(1))
+					Expect(deps[0]).To(Equal(&parser.Dependency{
+						Pkg: "github.com/nitrous-io/goop",
+						Rev: "09f0feb1b103933bd9985f0a85e01eeaad8d75c8",
+					}))
 				})
 
-				It("parses and returns a slice containing one dependency item", func() {
+				It("ignores whitespace", func() {
+					deps, err = parser.Parse(bytes.NewBufferString(`
+						github.com/nitrous-io/goop      #09f0feb1b103933bd9985f0a85e01eeaad8d75c8
+					`))
 					Expect(err).To(BeNil())
 					Expect(deps).To(HaveLen(1))
 					Expect(deps[0]).To(Equal(&parser.Dependency{

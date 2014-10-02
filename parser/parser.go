@@ -36,7 +36,7 @@ func Parse(r io.Reader) ([]*Dependency, error) {
 	for s.Scan() {
 		ln++
 		line := strings.TrimSpace(s.Text())
-		tokens := strings.Split(line, " ")
+		tokens := strings.Fields(line)
 
 		if line == "" || strings.HasPrefix(tokens[0], TokenComment) {
 			continue
