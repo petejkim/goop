@@ -1,6 +1,7 @@
 package goop
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -88,6 +89,66 @@ func (g *Goop) Install() error {
 		writeLockFile = true
 	}
 	return g.parseAndInstall(f, writeLockFile)
+}
+
+func (g *Goop) InstallPkg(pkg string, saveDev bool) error {
+	gftmp, err := os.Create(path.Join(g.dir, ".Goopfile"))
+	defer gftmp.Close()
+
+	if err != nil {
+		return err
+	}
+
+	var pkgs = []string{}
+
+	gf, err := os.Open(path.Join(g.dir, "Goopfile"))
+	defer gf.Close()
+	if err != nil {
+		//if there is no Goopfile defined yet, ignore
+		pkgs = append(pkgs, pkg)
+	} else {
+		scanner := bufio.NewScanner(gf)
+		filtered := false
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			pkgs = append(pkgs, line)
+
+			if line == pkg {
+				filtered = true
+			}
+		}
+
+		if !filtered {
+			pkgs = append(pkgs, pkg)
+		}
+
+		sort.Strings(pkgs)
+	}
+
+	for _, p := range pkgs {
+		_, err = gftmp.WriteString(p + "\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	gftmp.Seek(0, 0)
+
+	err = g.parseAndInstall(gftmp, true)
+	gftmp.Close()
+
+	if err != nil {
+		g.Exec("rm", "-f", path.Join(g.dir, ".Goopfile")) //remove the tmp file
+		return err
+	}
+
+	if saveDev {
+		g.Exec("mv", path.Join(g.dir, ".Goopfile"), path.Join(g.dir, "Goopfile"))
+	} else {
+		g.Exec("rm", "-f", path.Join(g.dir, ".Goopfile")) //remove the tmp file
+	}
+
+	return nil
 }
 
 func (g *Goop) Update() error {
