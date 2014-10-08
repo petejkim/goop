@@ -56,9 +56,9 @@ func (g *Goop) PrintEnv() {
 	if gopath == "" {
 		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.vendorDir())))
 	} else {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.vendorDir(), gopath)))
+		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s%s%s\n", g.vendorDir(), env.PathListSeparator, gopath)))
 	}
-	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.vendorDir(), "bin"), os.Getenv("PATH"))))
+	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s%s%s\n", path.Join(g.vendorDir(), "bin"), env.PathListSeparator, os.Getenv("PATH"))))
 }
 
 func (g *Goop) Exec(name string, args ...string) error {

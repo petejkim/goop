@@ -52,9 +52,9 @@ var _ = Describe("env", func() {
 		Context("when a given key has a value", func() {
 			It("prepends new value to the existing value", func() {
 				e.Prepend("_GOOP_ENV_TEST_FOO", "lol")
-				Expect(e["_GOOP_ENV_TEST_FOO"]).To(Equal("lol:foo"))
+				Expect(e["_GOOP_ENV_TEST_FOO"]).To(Equal("lol" + env.PathListSeparator + "foo"))
 				e.Prepend("_GOOP_ENV_TEST_FOO", "hello")
-				Expect(e["_GOOP_ENV_TEST_FOO"]).To(Equal("hello:lol:foo"))
+				Expect(e["_GOOP_ENV_TEST_FOO"]).To(Equal("hello" + env.PathListSeparator + "lol" + env.PathListSeparator + "foo"))
 			})
 		})
 
@@ -63,7 +63,7 @@ var _ = Describe("env", func() {
 				e.Prepend("_GOOP_ENV_TEST_EMPTY", "foo")
 				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("foo"))
 				e.Prepend("_GOOP_ENV_TEST_EMPTY", "lol")
-				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("lol:foo"))
+				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("lol" + env.PathListSeparator + "foo"))
 			})
 		})
 
@@ -76,7 +76,7 @@ var _ = Describe("env", func() {
 				e.Prepend("_GOOP_ENV_TEST_EMPTY", "foo")
 				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("foo"))
 				e.Prepend("_GOOP_ENV_TEST_EMPTY", "lol")
-				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("lol:foo"))
+				Expect(e["_GOOP_ENV_TEST_EMPTY"]).To(Equal("lol" + env.PathListSeparator + "foo"))
 			})
 		})
 	})

@@ -3,7 +3,10 @@ package env
 import (
 	"bytes"
 	"os"
+	"runtime"
 )
+
+var PathListSeparator = ":"
 
 type Env map[string]string
 
@@ -38,5 +41,11 @@ func (e Env) Prepend(key string, val string) {
 		e[key] = val
 		return
 	}
-	e[key] = val + ":" + oldv
+	e[key] = val + PathListSeparator + oldv
+}
+
+func init() {
+	if runtime.GOOS == "windows" {
+		PathListSeparator = ";"
+	}
 }
