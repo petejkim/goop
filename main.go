@@ -45,6 +45,8 @@ func main() {
 		err = g.Exec("go", os.Args[2:]...)
 	case "env":
 		g.PrintEnv()
+	case "generate":
+		err = g.GenerateGoopFile()
 	default:
 		err = errors.New(`unrecognized command "` + cmd + `"`)
 	}
@@ -85,5 +87,6 @@ The commands are:
     env         print GOPATH and PATH environment variables, with the vendor path prepended
     exec        execute a command in the context of the installed dependencies
     go          execute a go command in the context of the installed dependencies
+    generate    generate a new Goopfile from list of package imports
     help        print this message
 `
