@@ -2,10 +2,12 @@ package goop
 
 import (
 	"fmt"
+	"go/build"
 	"io"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -96,6 +98,70 @@ func (g *Goop) Update() error {
 		return err
 	}
 	return g.parseAndInstall(f, true)
+}
+
+
+func (g *Goop) GenerateGoopFile() error {
+	goopFileName := path.Join(g.dir, "Goopfile")
+	if exists, err := pathExists(goopFileName); exists || err != nil {
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("Goopfile %s already exists", goopFileName)
+		}
+	}
+	g.stdout.Write([]byte(colors.OK + "=> Generating Goopfile..." + colors.Reset + "\n"))
+	gf, err := os.Create(goopFileName)
+	if err != nil {
+		return err
+	}
+	defer gf.Close()
+
+	imports := make(map[string]struct{})
+	packages := make(map[string]struct{})
+	// find packages in sub directories and create list of imports
+	err = filepath.Walk(g.dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			if strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			} else {
+				if pkg, err := build.Default.ImportDir(path, 0); err == nil {
+					packages[pkg.ImportPath] = struct{}{}
+					for _, name := range pkg.Imports {
+						if importPkg, err := build.Default.Import(name, g.dir, 0); err == nil {
+							if importPkg.Goroot {
+								continue
+							}
+						}
+						if _, err := vcs.RepoRootForImportPath(name, false); err == nil {
+							imports[name] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	// remove any imports that are internal
+	for k := range packages {
+		if _, ok := imports[k]; ok {
+			delete(imports, k)
+		}
+	}
+	importList := make([]string, 0, len(imports))
+	for k := range imports {
+		importList = append(importList, k)
+	}
+	sort.Strings(importList)
+	for _, importName := range importList {
+		gf.WriteString(importName + "\n")
+	}
+	return nil
 }
 
 func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
