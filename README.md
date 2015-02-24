@@ -19,7 +19,11 @@ A dependency manager for Go (golang), inspired by Bundler. It is different from 
    github.com/gorilla/mux !git@github.com:nitrous-io/mux.git // override repo url
    ```
 
-3. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, recording exact versions used for each package and its dependencies. Subsequent `goop install` runs will ignore `Goopfile` and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
+3. Run `goop install`. This will install packages inside a subdirectory called `.vendor` and create `Goopfile.lock`, 
+   recording exact versions used for each package and its dependencies. Subsequent `goop install` runs will ignore `Goopfile` 
+   and install the versions specified in `Goopfile.lock`. You should check this file in to your source version control. 
+   It's a good idea to add `.vendor` to your version control system's ignore settings (e.g. `.gitignore`).
+   Use ``goop install --path my/deps`` to install to another directory.
 
 4. Run commands using `goop exec` (e.g. `goop exec make`). This will execute your command in an environment that has correct `GOPATH` and `PATH` set.
 
