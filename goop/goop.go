@@ -60,6 +60,8 @@ type Goop struct {
 	stdout io.Writer
 	stderr io.Writer
 
+	Verbose bool
+
 	config         *GoopConfig
 	configFilename string
 }
@@ -70,6 +72,7 @@ func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*
 		stdin:          stdin,
 		stdout:         stdout,
 		stderr:         stderr,
+		Verbose:        false,
 		config:         &GoopConfig{},
 		configFilename: path.Join(dir, ".goop", "config"),
 	}
@@ -425,8 +428,10 @@ func (g *Goop) command(path string, name string, args ...string) *exec.Cmd {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = path
 	cmd.Stdin = g.stdin
-	cmd.Stdout = g.stdout
 	cmd.Stderr = g.stderr
+	if g.Verbose {
+		cmd.Stdout = g.stdout
+	}
 	return cmd
 }
 

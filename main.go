@@ -13,17 +13,20 @@ import (
 var (
 	app = kingpin.New("goop", "A a tool for managing Go dependencies.")
 
-	installCmd  = app.Command("install", "Install the dependencies specified by Goopfile or Goopfile.lock")
-	installPath = installCmd.Flag("path", "Install dependencies to this directory").String()
+	installCmd     = app.Command("install", "Install the dependencies specified by Goopfile or Goopfile.lock")
+	installPath    = installCmd.Flag("path", "Install dependencies to this directory").String()
+	installVerbose = installCmd.Flag("verbose", "Enable verbose output").Bool()
 
-	updateCmd = app.Command("update", "Update dependencies to their latest versions")
-	envCmd    = app.Command("env", "Print GOPATH and PATH environment variables, with the vendor path prepended")
+	updateCmd     = app.Command("update", "Update dependencies to their latest versions")
+	updateVerbose = updateCmd.Flag("verbose", "Enable verbose output").Bool()
 
 	execCmd  = app.Command("exec", "Execute a command in the context of the installed dependencies")
 	execArgs = StringList(execCmd.Arg("command", "Command and arguments to execute").Required())
 
 	goCmd  = app.Command("go", "Execute a go command in the context of the installed dependencies")
 	goArgs = StringList(goCmd.Arg("command", "Command and arguments to execute").Required())
+
+	envCmd = app.Command("env", "Print GOPATH and PATH environment variables, with the vendor path prepended")
 )
 
 func main() {
@@ -43,9 +46,15 @@ func main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 
 	case installCmd.FullCommand():
+		if *installVerbose {
+			g.Verbose = true
+		}
 		err = g.Install(*installPath)
 
 	case updateCmd.FullCommand():
+		if *updateVerbose {
+			g.Verbose = true
+		}
 		err = g.Update()
 
 	case envCmd.FullCommand():
