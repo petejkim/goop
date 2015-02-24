@@ -1,11 +1,14 @@
 package goop
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -15,6 +18,33 @@ import (
 	"github.com/nitrous-io/goop/parser"
 	"github.com/nitrous-io/goop/pkg/env"
 )
+
+type GoopConfig struct {
+	GoopPath string
+}
+
+func (gc *GoopConfig) load(filename string) error {
+	config, err := ioutil.ReadFile(filename)
+	if err == nil {
+		// ignore if file does not exist
+		if err := json.Unmarshal(config, &gc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (gc *GoopConfig) write(filename string) error {
+	// try to create directory first
+	os.MkdirAll(path.Dir(filename), 0755)
+
+	str, err := json.MarshalIndent(gc, "", "  ")
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile(filename, str, 0755)
+	return nil
+}
 
 type UnsupportedVCSError struct {
 	VCS string
@@ -29,21 +59,37 @@ type Goop struct {
 	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
+
+	config         *GoopConfig
+	configFilename string
 }
 
-func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) *Goop {
-	return &Goop{dir: dir, stdin: stdin, stdout: stdout, stderr: stderr}
+func NewGoop(dir string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (*Goop, error) {
+	g := &Goop{
+		dir:            dir,
+		stdin:          stdin,
+		stdout:         stdout,
+		stderr:         stderr,
+		config:         &GoopConfig{},
+		configFilename: path.Join(dir, ".goop", "config"),
+	}
+
+	if err := g.config.load(g.configFilename); err != nil {
+		return nil, err
+	}
+
+	return g, nil
 }
 
 func (g *Goop) patchedEnv(replaceGopath bool) env.Env {
 	e := env.NewEnv()
 
-	binPath := path.Join(g.vendorDir(), "bin")
+	binPath := path.Join(g.absVendorDir(), "bin")
 
 	if replaceGopath {
-		e["GOPATH"] = g.vendorDir()
+		e["GOPATH"] = g.absVendorDir()
 	} else {
-		e.Prepend("GOPATH", g.vendorDir())
+		e.Prepend("GOPATH", g.absVendorDir())
 	}
 	e["GOBIN"] = binPath
 	e.Prepend("PATH", binPath)
@@ -54,15 +100,15 @@ func (g *Goop) patchedEnv(replaceGopath bool) env.Env {
 func (g *Goop) PrintEnv() {
 	gopath := os.Getenv("GOPATH")
 	if gopath == "" {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.vendorDir())))
+		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s\n", g.absVendorDir())))
 	} else {
-		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.vendorDir(), gopath)))
+		g.stdout.Write([]byte(fmt.Sprintf("GOPATH=%s:%s\n", g.absVendorDir(), gopath)))
 	}
-	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.vendorDir(), "bin"), os.Getenv("PATH"))))
+	g.stdout.Write([]byte(fmt.Sprintf("PATH=%s:%s\n", path.Join(g.absVendorDir(), "bin"), os.Getenv("PATH"))))
 }
 
 func (g *Goop) Exec(name string, args ...string) error {
-	vname := path.Join(g.vendorDir(), "bin", name)
+	vname := path.Join(g.absVendorDir(), "bin", name)
 	_, err := os.Stat(vname)
 	if err == nil {
 		name = vname
@@ -75,7 +121,13 @@ func (g *Goop) Exec(name string, args ...string) error {
 	return cmd.Run()
 }
 
-func (g *Goop) Install() error {
+func (g *Goop) Install(installPath string) error {
+	if installPath != "" {
+		// set install path in config file
+		g.config.GoopPath = installPath
+		g.config.write(g.configFilename)
+	}
+
 	writeLockFile := false
 	f, err := os.Open(path.Join(g.dir, "Goopfile.lock"))
 	if err == nil {
@@ -106,8 +158,8 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 		return err
 	}
 
-	srcPath := path.Join(g.vendorDir(), "src")
-	tmpGoPath := path.Join(g.vendorDir(), "tmp")
+	srcPath := path.Join(g.absVendorDir(), "src")
+	tmpGoPath := path.Join(g.absVendorDir(), "tmp")
 	tmpSrcPath := path.Join(tmpGoPath, "src")
 
 	err = os.RemoveAll(tmpGoPath)
@@ -302,7 +354,16 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 }
 
 func (g *Goop) vendorDir() string {
-	return path.Join(g.dir, ".vendor")
+	if g.config != nil && g.config.GoopPath != "" {
+		return g.config.GoopPath
+	} else {
+		return ".vendor"
+	}
+}
+
+func (g *Goop) absVendorDir() string {
+	abs, _ := filepath.Abs(g.vendorDir()) // TODO handle error
+	return abs
 }
 
 func (g *Goop) currentRev(vcsCmd string, path string) (string, error) {
