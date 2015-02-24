@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/alecthomas/kingpin"
-	"github.com/mattes/goop/goop"
 	"github.com/nitrous-io/goop/colors"
+	"github.com/nitrous-io/goop/goop"
 	"os"
 	"path"
 	"strconv"
