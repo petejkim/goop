@@ -1,3 +1,7 @@
+code.google.com/p/go.net #937a34c9de13c766c814510f76bca091dee06028
+code.google.com/p/go.tools/go/vcs #c5e1d3cb5e8e8c1c7c0738642555d7669d1d41e0
+github.com/alecthomas/kingpin #55a69a226d28a43b913720f5d765706d49c8fa9e
+github.com/alecthomas/units #6b4e7dc5e3143b85ea77909c72caf89416fc2915
 github.com/onsi/ginkgo/ginkgo #12446bbcc74950944c897e32ea99cc8d058f9c92
 github.com/onsi/gomega #036273e6f643552b16fe7a6464afd2ae0324992e
-code.google.com/p/go.tools/go/vcs #c5e1d3cb5e8e8c1c7c0738642555d7669d1d41e0
+golang.org/x/net #b6fdb7d8a4ccefede406f8fe0f017fb58265054c

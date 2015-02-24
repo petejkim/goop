@@ -1,14 +1,32 @@
 package main
 
 import (
-	"errors"
+	"github.com/alecthomas/kingpin"
+	"github.com/nitrous-io/goop/colors"
+	"github.com/nitrous-io/goop/goop"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+)
 
-	"github.com/nitrous-io/goop/colors"
-	"github.com/nitrous-io/goop/goop"
+var (
+	app = kingpin.New("goop", "A a tool for managing Go dependencies.")
+
+	installCmd     = app.Command("install", "Install the dependencies specified by Goopfile or Goopfile.lock")
+	installPath    = installCmd.Flag("path", "Install dependencies to this directory").String()
+	installVerbose = installCmd.Flag("verbose", "Enable verbose output").Bool()
+
+	updateCmd     = app.Command("update", "Update dependencies to their latest versions")
+	updateVerbose = updateCmd.Flag("verbose", "Enable verbose output").Bool()
+
+	execCmd  = app.Command("exec", "Execute a command in the context of the installed dependencies")
+	execArgs = StringList(execCmd.Arg("command", "Command and arguments to execute").Required())
+
+	goCmd  = app.Command("go", "Execute a go command in the context of the installed dependencies")
+	goArgs = StringList(goCmd.Arg("command", "Command and arguments to execute").Required())
+
+	envCmd = app.Command("env", "Print GOPATH and PATH environment variables, with the vendor path prepended")
 )
 
 func main() {
@@ -19,34 +37,44 @@ func main() {
 		os.Stderr.WriteString(colors.Error + name + ": failed to determine present working directory!" + colors.Reset + "\n")
 	}
 
-	g := goop.NewGoop(path.Join(pwd), os.Stdin, os.Stdout, os.Stderr)
-
-	if len(os.Args) < 2 {
-		printUsage()
+	g, err := goop.NewGoop(path.Join(pwd), os.Stdin, os.Stdout, os.Stderr)
+	if err != nil {
+		os.Stderr.WriteString(colors.Error + name + ": " + err.Error() + colors.Reset + "\n")
+		os.Exit(1)
 	}
 
-	cmd := os.Args[1]
-	switch cmd {
-	case "help":
-		printUsage()
-	case "install":
-		err = g.Install()
-	case "update":
+	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+
+	case installCmd.FullCommand():
+		if *installVerbose {
+			g.Verbose = true
+		}
+		err = g.Install(*installPath)
+
+	case updateCmd.FullCommand():
+		if *updateVerbose {
+			g.Verbose = true
+		}
 		err = g.Update()
-	case "exec":
-		if len(os.Args) < 3 {
-			printUsage()
-		}
-		err = g.Exec(os.Args[2], os.Args[3:]...)
-	case "go":
-		if len(os.Args) < 3 {
-			printUsage()
-		}
-		err = g.Exec("go", os.Args[2:]...)
-	case "env":
+
+	case envCmd.FullCommand():
 		g.PrintEnv()
+
+	case execCmd.FullCommand():
+		args := *execArgs
+		if len(args) > 0 {
+			err = g.Exec(args[0], args[1:]...)
+		}
+
+	case goCmd.FullCommand():
+		args := *goArgs
+		if len(args) > 0 {
+			err = g.Exec("go", args...)
+		}
+
 	default:
-		err = errors.New(`unrecognized command "` + cmd + `"`)
+		app.Usage(os.Stdout)
+
 	}
 
 	if err != nil {
@@ -68,22 +96,23 @@ func main() {
 	}
 }
 
-func printUsage() {
-	os.Stdout.WriteString(strings.TrimSpace(usage) + "\n\n")
-	os.Exit(0)
+type stringList []string
+
+func (l *stringList) Set(value string) error {
+	*l = append(*l, value)
+	return nil
 }
 
-const usage = `
-Goop is a tool for managing Go dependencies.
+func (l *stringList) String() string {
+	return ""
+}
 
-        goop command [arguments]
+func (l *stringList) IsCumulative() bool {
+	return true
+}
 
-The commands are:
-
-    install     install the dependencies specified by Goopfile or Goopfile.lock
-    update      update dependencies to their latest versions
-    env         print GOPATH and PATH environment variables, with the vendor path prepended
-    exec        execute a command in the context of the installed dependencies
-    go          execute a go command in the context of the installed dependencies
-    help        print this message
-`
+func StringList(s kingpin.Settings) (target *[]string) {
+	target = new([]string)
+	s.SetValue((*stringList)(target))
+	return
+}
