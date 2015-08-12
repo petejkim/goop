@@ -175,21 +175,21 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 			}
 		}
 
-		// if rev is not given, record current rev in path
-		if dep.Rev == "" {
-			rev, err := g.currentRev(repo.VCS.Cmd, tmpPkgPath)
+		// if rev is specified, check it out
+		if dep.Rev != "" {
+			err = g.checkout(repo.VCS.Cmd, tmpPkgPath, dep.Rev)
 			if err != nil {
 				return err
 			}
-			dep.Rev = rev
 		}
-		lockedDeps[dep.Pkg] = dep
 
-		// checkout specified rev
-		err = g.checkout(repo.VCS.Cmd, tmpPkgPath, dep.Rev)
+		// record current rev in path
+		rev, err := g.currentRev(repo.VCS.Cmd, tmpPkgPath)
 		if err != nil {
 			return err
 		}
+		dep.Rev = rev
+		lockedDeps[dep.Pkg] = dep
 	}
 
 	for _, dep := range deps {
