@@ -302,7 +302,13 @@ func (g *Goop) parseAndInstall(goopfile *os.File, writeLockFile bool) error {
 }
 
 func (g *Goop) vendorDir() string {
-	return path.Join(g.dir, ".vendor")
+	vendorDir := os.Getenv("GOOP_VENDOR_DIR")
+
+	if vendorDir == "" {
+		vendorDir = path.Join(g.dir, ".vendor")
+	}
+
+	return vendorDir
 }
 
 func (g *Goop) currentRev(vcsCmd string, path string) (string, error) {
