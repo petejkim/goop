@@ -16,7 +16,7 @@ func main() {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		os.Stderr.WriteString(colors.Error + name + ": failed to determine present working directory!" + colors.Reset + "\n")
+		handleNoWorkingDirError(name)
 	}
 
 	g := goop.NewGoop(path.Join(pwd), os.Stdin, os.Stdout, os.Stderr)
@@ -26,6 +26,23 @@ func main() {
 	}
 
 	cmd := os.Args[1]
+	err = executeCommand(cmd, err)
+
+	if err != nil {
+		handleExecutionError(err)
+	}
+}
+
+func handleNoWorkingDirError(name string) {
+	os.Stderr.WriteString(colors.Error + name + ": failed to determine present working directory!" + colors.Reset + "\n")
+}
+
+func printUsage() {
+	os.Stdout.WriteString(strings.TrimSpace(usage) + "\n\n")
+	os.Exit(0)
+}
+
+func executeCommand(cmd string, err error) err error {
 	switch cmd {
 	case "help":
 		printUsage()
@@ -48,29 +65,25 @@ func main() {
 	default:
 		err = errors.New(`unrecognized command "` + cmd + `"`)
 	}
-
-	if err != nil {
-		errMsg := err.Error()
-		code := 1
-
-		// go does not provide a cross-platform way to get exit status, so inspect error message instead
-		// https://code.google.com/p/go/source/browse/src/pkg/os/exec_posix.go#119
-		if strings.HasPrefix(errMsg, "exit status ") {
-			code, err = strconv.Atoi(errMsg[len("exit status "):])
-			if err != nil {
-				code = 1
-			}
-			errMsg = "Command failed with " + errMsg
-		}
-
-		os.Stderr.WriteString(colors.Error + name + ": " + errMsg + colors.Reset + "\n")
-		os.Exit(code)
-	}
+	return err
 }
 
-func printUsage() {
-	os.Stdout.WriteString(strings.TrimSpace(usage) + "\n\n")
-	os.Exit(0)
+func handleExecutionError(err error) {
+	errMsg := err.Error()
+	code := 1
+
+	// go does not provide a cross-platform way to get exit status, so inspect error message instead
+	// https://code.google.com/p/go/source/browse/src/pkg/os/exec_posix.go#119
+	if strings.HasPrefix(errMsg, "exit status ") {
+		code, err = strconv.Atoi(errMsg[len("exit status "):])
+		if err != nil {
+			code = 1
+		}
+		errMsg = "Command failed with " + errMsg
+	}
+
+	os.Stderr.WriteString(colors.Error + name + ": " + errMsg + colors.Reset + "\n")
+	os.Exit(code)
 }
 
 const usage = `
